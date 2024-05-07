@@ -36,6 +36,7 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     ############################
     #### Generating Salaries ####
     ############################
+    np.random.seed(42)  # for reproducibility
 
     num_samples = num_employees - 3  # Number of samples, leaving space for one min, one median, and one max value
 
@@ -122,6 +123,7 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     ############################
     ### Generating Household Size
     ############################ 
+    np.random.seed(42)  # for reproducibility
 
     # Calculate cumulative probabilities
     cumulative_prob = {}
@@ -185,7 +187,8 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     ###########################
     # Generating Parental Status
     ############################
-
+    np.random.seed(42)  # for reproducibility
+    
     # Count the number of employees with household size = 1
     num_single_household = df[df['household_size'] == 1].shape[0]
 
