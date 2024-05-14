@@ -7,6 +7,21 @@ import streamlit as st
 from matplotlib.ticker import FuncFormatter
 
 
+# List of US state names and abbreviations
+us_states = {
+    "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
+    "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
+    "Hawaii": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
+    "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD", "Massachusetts": "MA",
+    "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS", "Missouri": "MO", "Montana": "MT",
+    "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
+    "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
+    "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
+    "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
+    "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
+}
+
+
 ### User inputs #####
 
 # Function to calculate the percentage eligible
@@ -21,17 +36,18 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
 
     # User-defined distributions for household size and parental status
     distribution_percentages = {
-     1: 0.285, 2: 0.35, 3: 0.15, 4: 0.125, 5: 0.06, 6: 0.03
+     1: 0.289, 2: 0.347, 3: 0.151, 4: 0.123, 5: 0.056, 6: 0.034
     }
 
     percentages = {
-        "Single": 0.54,   # employee without partner or child
-        "Dual": 0.115,    # employee with partner and no child
-        "Single_P": 0.115, # employee with child and no partner
-        "Dual_P": 0.23     # employee with both partner and child
+        "Single": 0.464,   # employee without partner or child
+        "Dual": 0.3,    # employee with partner and no child
+        "Single_P": 0.041, # employee with child and no partner
+        "Dual_P": 0.195     # employee with both partner and child
     }
 
-
+    # Assumption: Percentage of married with both employed (source: BLS)
+    married_both_employed_percentage = 0.497
 
 
     ############################
@@ -328,8 +344,6 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     # Set random seed for reproducibility
     np.random.seed(42)
 
-    # Assumption: Percentage of married with both employed (source: BLS)
-    married_both_employed_percentage = 0.49
 
     # Get indices of 'M' rows
     m_indices = df[df['Marital Status'] == 'M'].index.to_numpy()
@@ -775,7 +789,10 @@ with col1:
 with col2:
     avg_dep = st.number_input("Average Dependents", value=3)
 with col3:
-    state = st.text_input("State", value='CA')
+    state_full_name = st.selectbox("State", list(us_states.keys()), index=list(us_states.keys()).index("California"))  # Dropdown menu for US states with default value
+
+# Convert state full name to abbreviation
+state = us_states[state_full_name]
 
 # Second row of inputs
 col4, col5, col6 = st.columns(3)
@@ -789,7 +806,21 @@ with col6:
 # Keep hourly_pct slider separate since it spans full width
 hourly_pct = st.slider("Percentage of Hourly Employees", 0.0, 1.0, 0.8)
 
-# Create tabs
+# Inject custom CSS for tab styling
+st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab"] {
+        font-size: 18px;
+        font-weight: bold;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-right: 8px;
+        padding: 10px 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Create tabs with custom CSS for styling
 tab1, tab2 = st.tabs(["Eligibility Calculation", "Checks"])
 
 with tab1:
@@ -816,7 +847,7 @@ with tab2:
         df = st.session_state.df
         df_salary = st.session_state.df_salary
         df_household_income = st.session_state.df_household_income
-        distribution_percentages = {1: 0.285, 2: 0.35, 3: 0.15, 4: 0.125, 5: 0.06, 6: 0.03}
+        distribution_percentages = {1: 0.289, 2: 0.347, 3: 0.151, 4: 0.123, 5: 0.056, 6: 0.034}
 
         # Display DataFrames side by side
         col1, col2 = st.columns(2)
