@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import math
 import streamlit as st
+from matplotlib.ticker import FuncFormatter
 
 
 ### User inputs #####
@@ -74,17 +75,17 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     }
 
     # Create the DataFrame
-    df_salary = pd.DataFrame(data)
+    df_salary_initial = pd.DataFrame(data)
 
 
     ## Check ##
-    below_thres = np.sum(df_salary['hourly_salary'] < hr_median)
+    below_thres = np.sum(df_salary_initial['hourly_salary'] < hr_median)
     #print(below_thres)
 
 
     # Plotting the histogram
     plt.figure(figsize=(10, 6))
-    plt.hist(df_salary['hourly_salary'], bins=20, color='skyblue', edgecolor='black')  # Adjust bins as needed
+    plt.hist(df_salary_initial['hourly_salary'], bins=20, color='skyblue', edgecolor='black')  # Adjust bins as needed
     plt.title('Hourly Pay Distribution')
     plt.xlabel('Salary')
     plt.ylabel('Frequency')
@@ -94,7 +95,7 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     #ax.hist(df_salary['hourly_salary'], bins=20, color='skyblue', edgecolor='black')
     #st.pyplot(fig)
 
-    df = df_salary
+    df = df_salary_initial
 
     # Calculate annual salary and create a new column 'annual_salary'
     df['annual_salary'] = df['hourly_salary'] * avg_weekly_hrs * weeks_in_yrs
@@ -745,19 +746,25 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     percentage_eligible = (eligible_count / num_employees) * 100
     #print("Percentage of eligible employees:", "{:.2f}%".format(percentage_eligible))
 
-
+    # Store the DataFrames in session state
+    st.session_state.df = df
+    st.session_state.df_salary = df_salary
+    st.session_state.df_household_income = df_household_income
     
     # Use the input variables in the model's logic to calculate the final outcome
     # Here, just return a dummy percentage for demonstration
     return eligible_count, percentage_eligible  # Placeholder percentage
 
-
+# Function to format the x-axis labels
+def currency_formatter(x, pos):
+    return f'${x/1000:.0f}K'
 
 # Streamlit app layout
 # Using markdown for title with adjusted size
 #st.markdown("## ChildCare Subsidy Eligibility Calculator")
 
 
+# Streamlit application
 st.title("ChildCare Subsidy Eligibility")
 
 # Organize inputs side by side using columns
@@ -782,21 +789,101 @@ with col6:
 # Keep hourly_pct slider separate since it spans full width
 hourly_pct = st.slider("Percentage of Hourly Employees", 0.0, 1.0, 0.8)
 
-# Calculate button
-if st.button("Calculate Eligibility"):
-    eligible_count, percentage_eligible = calculate_percentage_eligible(
-        num_employees, hourly_pct, hr_min, hr_median, hr_max, avg_dep, state
-    )
-    # Enhanced display using st.metric
-    #st.metric(label="Total Employees Eligible for ChildCare Subsidies", value=f"{eligible_count:.2f}%", delta=None)
-    
-    # Use Markdown with custom CSS for double underlining
-    st.markdown(f"""
-        <div style='text-align: center; color: black;'>
-            <span style='font-size: x-large; font-weight: bold;'>
-                <span style='border-bottom: 3px double; padding-bottom: 2px;'>
-                    {eligible_count} ({percentage_eligible:.1f}%)
-                </span> Employees Eligible
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+# Create tabs
+tab1, tab2 = st.tabs(["Eligibility Calculation", "Checks"])
+
+with tab1:
+    st.header("Eligibility Calculation")
+    # Calculate button
+    if st.button("Calculate Eligibility"):
+        eligible_count, percentage_eligible = calculate_percentage_eligible(
+            num_employees, hourly_pct, hr_min, hr_median, hr_max, avg_dep, state
+        )
+        # Enhanced display using st.metric
+        st.markdown(f"""
+            <div style='text-align: center; color: black;'>
+                <span style='font-size: x-large; font-weight: bold;'>
+                    <span style='border-bottom: 3px double; padding-bottom: 2px;'>
+                        {eligible_count} ({percentage_eligible:.1f}%)
+                    </span> Employees Eligible
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+with tab2:
+    st.header("Checks")
+    if 'df' in st.session_state and 'df_salary' in st.session_state and 'df_household_income' in st.session_state:
+        df = st.session_state.df
+        df_salary = st.session_state.df_salary
+        df_household_income = st.session_state.df_household_income
+        distribution_percentages = {1: 0.285, 2: 0.35, 3: 0.15, 4: 0.125, 5: 0.06, 6: 0.03}
+
+        # Display DataFrames side by side
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**Salary Band Distribution**")
+            st.dataframe(df_salary)
+        with col2:
+            st.markdown("**Household Income Distribution**")
+            st.dataframe(df_household_income)
+
+        # Arrange plots in a grid with a maximum of two plots per row
+        col1, col2 = st.columns(2)
+
+        # Plot: Annual Salary Distribution
+        with col1:
+            plt.figure(figsize=(5, 4))
+            plt.hist(df['annual_salary'], bins=20, color='skyblue', edgecolor='black')  # Adjust bins as needed
+            plt.title('Annual Salary Distribution')
+            plt.xlabel('Salary')
+            plt.ylabel('Frequency')
+            plt.gca().xaxis.set_major_formatter(FuncFormatter(currency_formatter))
+            plt.grid(True)
+            st.pyplot(plt)
+
+        # Plot: Household Income Distribution
+        with col2:
+            plt.figure(figsize=(5, 4))
+            # Assuming df has 'total_household_income' column, if not replace with correct column
+            plt.hist(df['total_household_income'], bins=20, color='skyblue', edgecolor='black')  # Adjust bins as needed
+            plt.title('Household Income Distribution')
+            plt.xlabel('Income')
+            plt.ylabel('Frequency')
+            plt.gca().xaxis.set_major_formatter(FuncFormatter(currency_formatter))
+            plt.grid(True)
+            st.pyplot(plt)
+
+        # Second row of plots
+        col3, col4 = st.columns(2)
+
+        # Plot: Household Size Distribution
+        with col3:
+            weights = np.ones_like(df['household_size']) / len(df) * 100
+            plt.figure(figsize=(5, 4))
+            df['household_size'].hist(bins=range(1, len(distribution_percentages) + 2), align='left', color='skyblue', edgecolor='black', weights=weights)
+            plt.title('Household Size Distribution in Percentages')
+            plt.xlabel('Size')
+            plt.ylabel('Percentage (%)')
+            plt.xticks(range(1, len(distribution_percentages) + 1))
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x)}%'))
+            plt.grid(axis='y')
+            st.pyplot(plt)
+
+        # Plot: Parental Status Distribution
+        with col4:
+            # Assuming df has 'parental_status' column, if not replace with correct column
+            parental_pct = df['parental_status'].value_counts(normalize=True) * 100
+            # parental_pct = parental_pct.sort_index()  # Sort by index to maintain original order
+
+            plt.figure(figsize=(5, 4))
+            parental_pct.plot(kind='bar', color='skyblue', edgecolor='black')
+            plt.title('Parental Status Distribution in Percentages')
+            plt.xlabel('Parental Status')
+            plt.ylabel('Percentage (%)')
+            plt.xticks(rotation=0)  # Rotate labels to make them readable
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x)}%'))
+            plt.grid(axis='y')
+            st.pyplot(plt)
+
+    else:
+        st.write("Please run the eligibility calculation first.")
