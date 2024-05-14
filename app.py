@@ -316,17 +316,126 @@ def calculate_percentage_eligible(num_employees, hourly_pct, hr_min, hr_median, 
     ### Calculations ###
     ##############################
 
-    # Function to calculate total household salary based on parental status
-    def calculate_total_household_salary(row):
-        if row['parental_status'] in ['Dual', 'Dual_P']:
-            return row['annual_salary'] * 2
+    ########################################
+    ###### Define Marital status
+    #######################################
+    df['Marital Status'] = np.where(df['parental_status'].isin(['Dual', 'Dual_P']), 'M', 'S')
+
+    ################################
+    ### Calculations ###
+    ##############################
+    # Set random seed for reproducibility
+    np.random.seed(42)
+
+    # Assumption: Percentage of married with both employed (source: BLS)
+    married_both_employed_percentage = 0.49
+
+    # Get indices of 'M' rows
+    m_indices = df[df['Marital Status'] == 'M'].index.to_numpy()
+
+    # Randomly shuffle the indices
+    np.random.shuffle(m_indices)
+
+    # Determine the number of 'BE' and 'SE' based on the percentage assumption
+    num_be = int(len(m_indices) * married_both_employed_percentage)
+
+
+    # Assign 'BE' and 'SE' labels to 'M' rows
+    df.loc[m_indices[:num_be], 'M- Employment Type'] = 'BE'  #BE is both employed in Married 
+    df.loc[m_indices[num_be:], 'M- Employment Type'] = 'SE'  #SE is only one employed in Married
+
+    # Summary of 'M- Employment Type'
+    summary = df['M- Employment Type'].value_counts(normalize=True) * 100
+    # print(summary)
+
+    # Calculate total household salary based on employment type
+    df['total_household_income'] = df['annual_salary']
+    df.loc[df['M- Employment Type'] == 'BE', 'total_household_income'] *= 2
+
+
+    # Function to calculate child status based on parental status
+    def calculate_child_status(parental_status):
+        if parental_status in ['Dual_P', 'Single_P']:
+            return 1
         else:
-            return row['annual_salary']
-        
-        
-        
-    # Apply the function to create the 'total_household_salary' column
-    df['total_household_income'] = df.apply(calculate_total_household_salary, axis=1)
+            return 0
+
+    # Apply the function to create the 'child_status' column
+    df['child_status'] = df['parental_status'].apply(lambda x: calculate_child_status(x))
+
+    # Display the updated DataFrame
+    #print(df)
+
+
+    ################################
+    ###### Creating dataframe for salary summary ############
+    ################################
+    # Define salary bins
+    salary_bins = [0, 20000, 40000, 60000, 80000, 100000, np.inf]
+
+    # Create salary bands using cut
+    df['Salary Band'] = pd.cut(df['annual_salary'], bins=salary_bins, right=False)
+
+    # Count salaries in each band
+    salary_counts = df['Salary Band'].value_counts().sort_index()
+
+    # Calculate total salaries
+    total_salaries = len(df)
+
+    # Calculate percentage of total salaries in each band
+    percentage_salary = (salary_counts / total_salaries) * 100
+
+    # Create DataFrame
+    df_salary = pd.DataFrame({
+        'Salary Band': salary_counts.index,
+        'Count': salary_counts.values,
+        'Percentage of Total': percentage_salary.values
+    })
+
+    # Define the mapping
+    salary_band_mapping = {
+        pd.Interval(left=0, right=20000, closed='left'): '$0 - $20K',
+        pd.Interval(left=20000, right=40000, closed='left'): '$20K - $40K',
+        pd.Interval(left=40000, right=60000, closed='left'): '$40K - $60K',
+        pd.Interval(left=60000, right=80000, closed='left'): '$60K - $80K',
+        pd.Interval(left=80000, right=100000, closed='left'): '$80K - $100K',
+        pd.Interval(left=100000, right=np.inf, closed='left'): '$100K+'
+    }
+
+    # Replace the 'Salary Band' values using the mapping
+    df_salary['Salary Band'] = df_salary['Salary Band'].map(salary_band_mapping)
+
+    print(df_salary)
+
+    # print(df_salary['Count'].sum())
+    # print(df.columns)
+
+    ####################################################
+    # Create household income bands using cut
+    df['Salary Band HI'] = pd.cut(df['total_household_income'], bins=salary_bins, right=False)
+
+    # Count salaries in each band
+    income_counts = df['Salary Band HI'].value_counts().sort_index()
+
+    # Calculate total salaries
+    total_incomes = len(df)
+
+    # Calculate percentage of total salaries in each band
+    percentage_income = (income_counts / total_incomes) * 100
+
+    # Create DataFrame
+    df_household_income = pd.DataFrame({
+        'Salary Band HI': income_counts.index,
+        'Count': income_counts.values,
+        'Percentage of Total': percentage_income.values
+    })
+
+
+    # Replace the 'Salary Band' values using the mapping
+    df_household_income['Salary Band HI'] = df_household_income['Salary Band HI'].map(salary_band_mapping)
+
+
+    print(df_household_income)
 
     #print(df)
 
